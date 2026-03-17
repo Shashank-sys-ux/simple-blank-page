@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CODEBUDDY — Code. Compete. Conquer.</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --mc:'Press Start 2P',monospace;
+  --sky:#87CEEB;--sky2:#4a9fd4;--sky3:#1a3a6e;
+  --grass:#5D8A3C;--grass2:#3d6028;--dirt:#8B6340;--dirt2:#5C3A1A;
+  --wood:#C4A061;--wood2:#7E6348;--wood3:#5C3A1A;
+  --stone:#888;--stone2:#555;--ore:#1a4a8b;
+  --gold:#FFD700;--green:#4AAD52;--red:#CC2222;--orange:#CC6600;--blue:#2244CC;
+  --dark:#111;--darker:#000;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;cursor:none;}
+canvas#world{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;}
+
+/* CUSTOM CURSOR */
+#cursor{position:fixed;width:36px;height:36px;pointer-events:none;z-index:9999;transform:translate(-4px,-2px);}
+#crosshair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:200;opacity:.85;}
+
+/* HUD OVERLAY */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:100;}
+
+/* Vignette */
+#vig{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 50%,transparent 25%,rgba(0,0,0,.7)100%);pointer-events:none;z-index:90;}
+
+/* Scanlines */
+#scan{position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03)2px,rgba(0,0,0,.03)4px);pointer-events:none;z-index:91;}
+
+/* Screen flash */
+#flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:500;transition:opacity .1s;}
+
+/* Coords / biome */
+#coords{position:fixed;top:14px;right:16px;font-family:var(--mc);font-size:.32rem;color:#fff;text-shadow:2px 2px #000;text-align:right;line-height:2.2;background:rgba(0,0,0,.75);padding:8px 12px;z-index:900;border-left:3px solid rgba(255,255,255,.3);border-radius:4px;}
+#biome{position:fixed;top:14px;left:16px;font-family:var(--mc);font-size:.34rem;color:var(--gold);text-shadow:2px 2px #000;background:rgba(0,0,0,.85);padding:8px 14px;border-left:4px solid var(--gold);z-index:900;transition:all .5s;border-radius:4px;}
+
+/* Area label */
+#arealabel{position:fixed;top:60px;left:50%;transform:translateX(-50%);font-family:var(--mc);font-size:.38rem;color:var(--gold);text-shadow:2px 2px #000;background:rgba(0,0,0,.85);padding:8px 16px;border:2px solid rgba(255,215,0,.6);z-index:900;opacity:0;transition:opacity .4s;white-space:nowrap;border-radius:4px;}
+
+/* Notifications */
+#notif{position:fixed;top:50px;left:50%;transform:translateX(-50%);font-family:var(--mc);font-size:.35rem;background:rgba(0,0,0,.8);color:var(--gold);padding:7px 16px;border:1px solid rgba(255,215,0,.4);z-index:200;opacity:0;transition:opacity .3s;pointer-events:none;}
+
+/* Day/night */
+#daynight{position:fixed;inset:0;pointer-events:none;z-index:89;transition:background .5s;background:transparent;}
+
+/* Weather overlay */
+#weather{position:fixed;inset:0;pointer-events:none;z-index:92;overflow:hidden;}
+
+/* Hotbar */
+#hotbar{position:fixed;bottom:6px;left:50%;transform:translateX(-50%);display:flex;gap:3px;z-index:102;pointer-events:none;}
+.hslot{width:46px;height:46px;background:rgba(80,80,80,.85);border:2px solid rgba(30,30,30,.9);border-top-color:rgba(170,170,170,.5);border-left-color:rgba(170,170,170,.5);display:flex;align-items:center;justify-content:center;font-size:1.4rem;position:relative;}
+.hslot.active{border:3px solid #fff;background:rgba(100,100,100,.9);}
+
+/* XP bar */
+#xpbar{position:fixed;bottom:58px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;z-index:900;pointer-events:none;background:rgba(0,0,0,0.6);padding:6px 16px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);}
+#xptrack{width:220px;height:6px;background:rgba(0,0,0,.8);border:1px solid #444;}
+#xpfill{height:100%;background:#A8FF40;width:5%;transition:width .4s;box-shadow:0 0 10px #A8FF40;}
+#xplvl{font-family:var(--mc);font-size:.32rem;color:#A8FF40;text-shadow:2px 2px #000, 0 0 5px rgba(0,0,0,0.8);letter-spacing:1px;}
+
+/* Section nav dots */
+#navdots{position:fixed;right:8px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:10px;z-index:102;}
+.nd{width:10px;height:10px;border:1.5px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);cursor:pointer;transition:all .2s;pointer-events:auto;}
+.nd:hover{background:rgba(255,255,255,.4);}
+.nd.active{background:var(--gold);border-color:var(--gold);box-shadow:0 0 8px var(--gold);}
+
+/* SECTIONS */
+#sections{position:fixed;inset:0;z-index:95;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+.section{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:10px;opacity:0;pointer-events:none;transition:opacity .45s ease;overflow:hidden;}
+.section.visible{opacity:1;pointer-events:auto;}
+
+/* ─── HERO ─── */
+#s-hero{flex-direction:column;text-align:center;}
+.hero-title{font-family:var(--mc);font-size:clamp(1.6rem,5.5vw,3.8rem);color:var(--gold);text-shadow:4px 4px 0 #3D2B1F,8px 8px 0 rgba(0,0,0,.4);animation:float 3.2s ease-in-out infinite;letter-spacing:6px;line-height:1.5;}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+.hero-sub{font-family:var(--mc);font-size:clamp(.4rem,1.8vw,.8rem);color:#fff;text-shadow:2px 2px #000;letter-spacing:3px;margin:12px 0 8px;}
+.hero-badge{font-family:var(--mc);font-size:.32rem;color:#aaa;letter-spacing:2px;margin-bottom:28px;}
+.hero-btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;}
+.grass-row{display:flex;margin-top:24px;gap:0;}
+.gblock{width:38px;height:38px;background:var(--grass);border-top:4px solid #8FD45F;border-left:4px solid #7FC44F;border-right:4px solid var(--grass2);border-bottom:4px solid #2d5020;animation:gsway 2.5s ease-in-out infinite alternate;image-rendering:pixelated;}
+@keyframes gsway{0%{transform:skewX(-1deg) scaleY(1)}100%{transform:skewX(1deg) scaleY(1.02)}}
+
+/* ─── ABOUT ─── */
+#s-about{flex-direction:column;gap:12px;}
+.about-signs{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;max-width:960px;}
+.wsign{background:linear-gradient(160deg,#C4A061,#B8924E 50%,#C4A061);border:4px solid var(--wood3);padding:16px;max-width:210px;box-shadow:4px 4px 0 #3D2B1F,8px 8px rgba(0,0,0,.25);position:relative;}
+.wsign::before{content:'';position:absolute;top:-13px;left:50%;transform:translateX(-50%);width:12px;height:12px;background:var(--wood2);border:2px solid var(--wood3);}
+.wsign-title{font-family:var(--mc);font-size:.45rem;color:#3D2B1F;border-bottom:2px solid var(--wood3);padding-bottom:8px;margin-bottom:10px;text-shadow:1px 1px rgba(255,255,255,.3);}
+.wsign-body{font-family:var(--mc);font-size:.36rem;color:#5C4A2A;line-height:2.2;}
+
+/* ─── REGISTRATION ─── */
+#s-reg{flex-direction:column;}
+.hut-outer{background:repeating-linear-gradient(180deg,#7E6348 0px,#7E6348 18px,#5C4030 18px,#5C4030 20px);border:6px solid #3D2B1F;padding:24px;display:flex;flex-direction:column;align-items:center;gap:14px;max-width:480px;width:100%;box-shadow:6px 6px 0 #1a0a00,12px 12px rgba(0,0,0,.3);}
+.hut-title{font-family:var(--mc);font-size:.68rem;color:var(--gold);text-shadow:2px 2px #000;text-align:center;}
+.dpanel{background:#1e1e1e;border:4px solid #555;border-right-color:#aaa;border-bottom-color:#aaa;padding:20px;width:100%;box-shadow:4px 4px rgba(0,0,0,.5);}
+.inp{background:#000;border:3px solid #555;border-right-color:#aaa;border-bottom-color:#aaa;color:#fff;font-family:var(--mc);font-size:.5rem;padding:9px 12px;width:100%;outline:none;letter-spacing:1px;}
+.inp:focus{border-color:var(--green);box-shadow:0 0 0 1px rgba(74,173,82,.35);}
+.inp::placeholder{color:#444;}
+.lbl{font-family:var(--mc);font-size:.35rem;color:#888;margin:8px 0 4px;}
+.errtxt{font-family:var(--mc);font-size:.32rem;color:#FF5555;margin-top:3px;}
+.successpanel{background:#0a1f0a;border:4px solid var(--green);padding:20px;width:100%;text-align:center;box-shadow:0 0 20px rgba(74,173,82,.25),4px 4px rgba(0,0,0,.5);}
+.qrbox{background:#fff;padding:12px;width:fit-content;margin:10px auto;box-shadow:0 0 0 3px #333,3px 3px rgba(0,0,0,.4);}
+.qrid{font-family:var(--mc);font-size:.35rem;color:var(--green);margin:10px 0;word-break:break-all;}
+.pbar{width:100%;height:7px;background:#333;border:2px solid #555;margin:5px 0;}
+.pfill{height:100%;background:var(--green);width:0%;transition:width .15s;box-shadow:0 0 5px var(--green);}
+
+/* ─── INVENTORY ─── */
+#s-inv{flex-direction:column;}
+.invpanel{background:#3C3C3C;border:4px solid #8B8B8B;border-right-color:#222;border-bottom-color:#222;padding:18px;max-width:600px;width:100%;box-shadow:6px 6px rgba(0,0,0,.6);}
+.inv-title{font-family:var(--mc);font-size:.6rem;color:#fff;text-shadow:2px 2px #000;text-align:center;margin-bottom:14px;}
+.inv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.islot{background:#8B8B8B;border:3px solid #222;border-right-color:#e0e0e0;border-bottom-color:#e0e0e0;padding:10px 8px;text-align:center;cursor:pointer;transition:filter .1s;}
+.islot:hover{filter:brightness(1.35);}
+.islot .ico{font-size:1.5rem;margin-bottom:4px;}
+.islot .ilbl{font-family:var(--mc);font-size:.3rem;color:#333;margin-bottom:3px;}
+.islot .ival{font-family:var(--mc);font-size:.46rem;color:#fff;text-shadow:1px 1px #000;word-break:break-all;}
+.islot.gold-slot .ival{color:var(--gold);}
+
+/* ─── COORD LOGIN ─── */
+#s-coord{flex-direction:column;}
+.cmdroom{background:linear-gradient(145deg,#1a0800,#2a1400);border:4px solid var(--orange);padding:24px;max-width:400px;width:100%;box-shadow:inset 0 0 40px rgba(204,102,0,.12),0 0 0 1px #883300,6px 6px rgba(0,0,0,.7),0 0 50px rgba(204,102,0,.2);}
+.cmd-title{font-family:var(--mc);font-size:.65rem;color:var(--orange);text-shadow:0 0 12px var(--orange);text-align:center;margin-bottom:6px;}
+.cmd-sub{font-family:var(--mc);font-size:.35rem;color:#666;text-align:center;margin-bottom:18px;letter-spacing:1px;}
+
+/* ─── DASHBOARD ─── */
+#s-dash{flex-direction:column;}
+.dashpanel{background:#0d1a0d;border:4px solid var(--green);padding:18px;max-width:680px;width:100%;box-shadow:0 0 30px rgba(74,173,82,.2),6px 6px rgba(0,0,0,.7);}
+.dash-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:2px solid rgba(74,173,82,.25);padding-bottom:10px;}
+.dash-title{font-family:var(--mc);font-size:.55rem;color:var(--green);text-shadow:0 0 8px rgba(74,173,82,.5);}
+.scanbx{background:#000;border:3px solid var(--green);width:100%;max-width:280px;height:180px;margin:8px auto;position:relative;overflow:hidden;}
+.scanline{position:absolute;width:100%;height:2px;background:rgba(74,173,82,.8);box-shadow:0 0 8px var(--green);animation:scnanim 2s linear infinite;}
+@keyframes scnanim{0%{top:0}100%{top:100%}}
+.corner{position:absolute;width:14px;height:14px;border-color:var(--green);border-style:solid;}
+.corner.tl{top:5px;left:5px;border-width:2px 0 0 2px;}
+.corner.tr{top:5px;right:5px;border-width:2px 2px 0 0;}
+.corner.bl{bottom:5px;left:5px;border-width:0 0 2px 2px;}
+.corner.br{bottom:5px;right:5px;border-width:0 2px 2px 0;}
+#svid{width:100%;height:100%;object-fit:cover;display:none;}
+#scanph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mc);font-size:.34rem;color:var(--green);text-align:center;padding:8px;}
+.pc{background:#081408;border:2px solid var(--green);padding:12px;font-family:var(--mc);font-size:.36rem;color:var(--green);line-height:2.5;}
+
+/* ─── LEADERBOARD ─── */
+#s-lb{flex-direction:column;}
+.lb-pillar{background:repeating-linear-gradient(180deg,#777 0px,#888 8px,#666 8px,#777 16px);border:6px solid #555;border-top-color:#999;border-left-color:#999;padding:20px 16px;max-width:800px;width:100%;box-shadow:8px 8px 20px rgba(0,0,0,0.7),inset 0 0 30px rgba(0,0,0,0.3);position:relative;}
+.lb-pillar::before{content:'';position:absolute;top:-10px;left:8px;right:8px;height:10px;background:linear-gradient(90deg,#888,#aaa,#888);border:2px solid #666;z-index:1;}
+.lb-pillar::after{content:'';position:absolute;bottom:-10px;left:8px;right:8px;height:10px;background:linear-gradient(90deg,#888,#aaa,#888);border:2px solid #666;}
+.lboard{background:rgba(0,0,0,0.9);border:4px solid #333;border-top-color:#555;border-left-color:#555;width:100%;overflow:hidden;box-shadow:inset 0 0 40px rgba(0,0,0,0.9),inset 4px 4px 8px rgba(0,0,0,0.5);}
+.lboard-hdr{background:linear-gradient(90deg,#1a1a1a,#2a2a2a,#1a1a1a);border-bottom:4px solid #111;padding:16px;text-align:center;font-family:var(--mc);font-size:.75rem;color:var(--gold);text-shadow:2px 2px #000,0 0 20px var(--gold);letter-spacing:3px;animation:sPulse 2s ease-in-out infinite;}
+@keyframes sPulse{0%,100%{text-shadow:2px 2px #000,0 0 20px var(--gold)}50%{text-shadow:2px 2px #000,0 0 40px var(--gold),0 0 60px rgba(255,215,0,.3)}}
+.lbt{width:100%;border-collapse:collapse;background:rgba(0,0,0,0.4);}
+.lbt th{background:rgba(60,60,60,.9);font-family:var(--mc);font-size:.44rem;color:var(--gold);padding:10px 8px;border-bottom:2px solid #222;letter-spacing:1px;}
+.lbt td{font-family:var(--mc);font-size:.40rem;color:#fff;padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.07);text-align:center;}
+.lbt tr:nth-child(even) td{background:rgba(255,255,255,.04);}
+.lbt tr:first-child td{color:var(--gold);font-size:.44rem;}
+.lbt tr:nth-child(2) td{color:#C0C0C0;}
+.lbt tr:nth-child(3) td{color:#CD7F32;}
+.live{width:8px;height:8px;background:var(--green);border-radius:50%;display:inline-block;animation:livp 1s ease-in-out infinite;vertical-align:middle;margin-right:5px;}
+@keyframes livp{0%,100%{opacity:1;box-shadow:0 0 4px var(--green)}50%{opacity:.2;box-shadow:none}}
+.sep{width:100%;border:none;border-top:2px solid rgba(255,255,255,.1);margin:8px 0;}
+
+/* BUTTONS */
+.btn{font-family:var(--mc);color:#fff;cursor:pointer;border:none;outline:none;text-shadow:1px 1px rgba(0,0,0,.5);letter-spacing:1px;font-size:clamp(.35rem,1.1vw,.55rem);padding:10px 16px;position:relative;transition:filter .12s,transform .12s;}
+.btn:hover{filter:brightness(1.3);}
+.btn:active{transform:translateY(1px);filter:brightness(.88);}
+.btn.gr{background:#4AAD52;box-shadow:inset 2px 2px rgba(255,255,255,.3),inset -2px -3px rgba(0,0,0,.35),0 0 0 2px #2d6e30;}
+.btn.gr:hover{box-shadow:inset 2px 2px rgba(255,255,255,.3),inset -2px -3px rgba(0,0,0,.35),0 0 0 2px #2d6e30,0 0 20px rgba(74,173,82,.6);}
+.btn.rd{background:#CC2222;box-shadow:inset 2px 2px rgba(255,255,255,.3),inset -2px -3px rgba(0,0,0,.35),0 0 0 2px #8b0000;}
+.btn.rd:hover{box-shadow:inset 2px 2px rgba(255,255,255,.3),inset -2px -3px rgba(0,0,0,.35),0 0 0 2px #8b0000,0 0 20px rgba(204,34,34,.55);}
+.btn.gl{background:#B8860B;box-shadow:inset 2px 2px rgba(255,255,255,.3),inset -2px -3px rgba(0,0,0,.35),0 0 0 2px #7a5c00;}
+.btn.gl:hover{box-shadow:inset 2px 2px rgba(255,255,255,.3),inset -2px -3px rgba(0,0,0,.35),0 0 0 2px #7a5c00,0 0 20px rgba(255,215,0,.5);}
+.btn.bl{background:#2244CC;box-shadow:inset 2px 2px rgba(255,255,255,.3),inset -2px -3px rgba(0,0,0,.35),0 0 0 2px #001488;}
+.btn.or{background:#CC6600;box-shadow:inset 2px 2px rgba(255,255,255,.3),inset -2px -3px rgba(0,0,0,.35),0 0 0 2px #883300;}
+.btn.or:hover{box-shadow:inset 2px 2px rgba(255,255,255,.3),inset -2px -3px rgba(0,0,0,.35),0 0 0 2px #883300,0 0 20px rgba(204,102,0,.6);}
+.btn.st{background:#666;box-shadow:inset 2px 2px rgba(255,255,255,.2),inset -2px -3px rgba(0,0,0,.4),0 0 0 2px #333;}
+
+/* PARTICLE & XP */
+.px-particle{position:fixed;width:7px;height:7px;pointer-events:none;z-index:999;animation:pxA .65s ease-out forwards;}
+@keyframes pxA{0%{opacity:1;transform:scale(1)translate(0,0)}100%{opacity:0;transform:scale(0)translate(var(--dx),var(--dy))}}
+.xporb{position:fixed;width:11px;height:11px;background:#0ff;border-radius:50%;box-shadow:0 0 8px #0ff;pointer-events:none;z-index:998;animation:xpA 1.8s ease-out forwards;}
+@keyframes xpA{0%{opacity:1;transform:scale(1)translateY(0)}60%{opacity:.9;transform:scale(1.4)translateY(-30px)}100%{opacity:0;transform:scale(0)translateY(-80px)}}
+.rain-drop{position:absolute;width:1px;background:linear-gradient(transparent,rgba(140,180,255,.7));animation:rainFall linear infinite;pointer-events:none;}
+@keyframes rainFall{0%{transform:translateY(-20px)}100%{transform:translateY(100vh)}}
+
+/* LOADER */
+#loader{position:fixed;inset:0;background:#000;z-index:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .6s;}
+.ld-title{font-family:var(--mc);font-size:clamp(.8rem,3vw,1.4rem);color:var(--gold);text-shadow:3px 3px rgba(0,0,0,.5);}
+.ld-sub{font-family:var(--mc);font-size:.35rem;color:#888;animation:sPulse 1.5s infinite;}
+.ldbar{width:280px;height:12px;background:#222;border:3px solid #444;}
+.ldfill{height:100%;background:var(--green);width:0%;transition:width .2s;box-shadow:0 0 8px var(--green);}
+.ld-status{font-family:var(--mc);font-size:.3rem;color:var(--green);}
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="ld-title">⛏ CODEBUDDY</div>
+  <div class="ld-sub">Loading World...</div>
+  <div class="ldbar"><div class="ldfill" id="ldfill"></div></div>
+  <div class="ld-status" id="ldstatus">Generating terrain...</div>
+</div>
+
+<!-- THREE.JS CANVAS -->
+<canvas id="world"></canvas>
+
+<!-- VIGNETTE + SCANLINES -->
+<div id="vig"></div>
+<div id="scan"></div>
+<div id="daynight"></div>
+<div id="weather"></div>
+<div id="flash"></div>
+
+<!-- CUSTOM CURSOR -->
+<div id="cursor">
+  <svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="5,0 5,22 9,17 14,27 18,25 13,15 19,15" fill="#C4A061" stroke="#3D2B1F" stroke-width="1.5"/>
+    <rect x="14" y="10" width="18" height="6" rx="1" fill="#8B8B8B" stroke="#555" stroke-width="1" transform="rotate(-40 14 10) translate(-2 -2)"/>
+  </svg>
+</div>
+
+<!-- CROSSHAIR -->
+<div id="crosshair">
+  <svg width="24" height="24" viewBox="0 0 24 24">
+    <line x1="12" y1="0" x2="12" y2="24" stroke="rgba(255,255,255,.8)" stroke-width="1.5"/>
+    <line x1="0" y1="12" x2="24" y2="12" stroke="rgba(255,255,255,.8)" stroke-width="1.5"/>
+    <rect x="10" y="10" width="4" height="4" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1"/>
+  </svg>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="biome">🌿 SPAWN BIOME</div>
+  <div id="coords">
+    X: <span id="cx">0</span><br>
+    Y: <span id="cy">64</span><br>
+    Z: <span id="cz">0</span><br>
+    ☀️ <span id="tod">DAY</span>
+  </div>
+  <div id="arealabel"></div>
+  <div id="notif"></div>
+  <div id="xpbar">
+    <div id="xptrack"><div id="xpfill"></div></div>
+    <div id="xplvl">LVL 1 — 5 XP</div>
+  </div>
+  <div id="hotbar">
+    <div class="hslot active">⛏</div>
+    <div class="hslot">🪓</div>
+    <div class="hslot">🗡️</div>
+    <div class="hslot">🏹</div>
+    <div class="hslot">💎</div>
+    <div class="hslot">📜</div>
+    <div class="hslot">🔥</div>
+    <div class="hslot">❤️</div>
+    <div class="hslot">⭐</div>
+  </div>
+</div>
+
+<!-- SECTION NAV DOTS -->
+<div id="navdots">
+  <div class="nd active" onclick="goSection(0)" title="Spawn"></div>
+  <div class="nd" onclick="goSection(1)" title="About"></div>
+  <div class="nd" onclick="goSection(2)" title="Register"></div>
+  <div class="nd" onclick="goSection(3)" title="Inventory"></div>
+  <div class="nd" onclick="goSection(4)" title="Coordinator"></div>
+  <div class="nd" onclick="goSection(5)" title="Dashboard"></div>
+  <div class="nd" onclick="goSection(6)" title="Leaderboard"></div>
+</div>
+
+<!-- SECTIONS -->
+<div id="sections">
+
+  <!-- SECTION 0: HERO -->
+  <div class="section visible" id="s-hero">
+    <div style="display:flex;flex-direction:column;align-items:center;text-align:center;max-width:700px;">
+      <div style="font-family:var(--mc);font-size:.38rem;color:var(--green);letter-spacing:4px;margin-bottom:10px;text-shadow:0 0 10px var(--green);">▶ PLAYER SPAWNED ◀</div>
+      <div class="hero-title">⛏ CODEBUDDY ⛏</div>
+      <div class="hero-sub">"Code. Compete. Conquer."</div>
+      <div class="hero-badge">COLLEGE CODING EVENT · SEASON 2025 · 7 ROUNDS</div>
+      <div class="hero-btns">
+        <button class="btn gr" onclick="goSection(2);spawnXP(event)">⛏ REGISTER NOW</button>
+        <button class="btn gl" onclick="goSection(4);spawnXP(event)">⚙ COORD LOGIN</button>
+        <button class="btn or" onclick="goSection(6);spawnXP(event)">🏆 LEADERBOARD</button>
+        <button class="btn bl" onclick="goSection(1);spawnXP(event)">📜 ABOUT</button>
+      </div>
+      <div class="grass-row" style="margin-top:22px;">
+        <div class="gblock" style="animation-delay:0s"></div>
+        <div class="gblock" style="animation-delay:.15s"></div>
+        <div class="gblock" style="animation-delay:.3s"></div>
+        <div class="gblock" style="animation-delay:.45s"></div>
+        <div class="gblock" style="animation-delay:.6s"></div>
+        <div class="gblock" style="animation-delay:.75s"></div>
+        <div class="gblock" style="animation-delay:.9s"></div>
+        <div class="gblock" style="animation-delay:1.05s"></div>
+        <div class="gblock" style="animation-delay:1.2s"></div>
+        <div class="gblock" style="animation-delay:1.35s"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: ABOUT -->
+  <div class="section" id="s-about">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;max-width:900px;width:100%;">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:4px;">
+        <span style="font-size:1.3rem;animation:tFck 0.4s ease-in-out infinite alternate;">🔥</span>
+        <div style="font-family:var(--mc);font-size:.6rem;color:var(--gold);text-shadow:2px 2px #000;">VILLAGE NOTICE BOARD</div>
+        <span style="font-size:1.3rem;animation:tFck 0.4s ease-in-out infinite alternate;">🔥</span>
+      </div>
+      <div class="about-signs">
+        <div class="wsign">
+          <div class="wsign-title">📋 RULES</div>
+          <div class="wsign-body">▸ Teams of 1–3<br>▸ No external resources<br>▸ USN required<br>▸ QR = entry pass<br>▸ Judges final<br>▸ No plagiarism</div>
+        </div>
+        <div class="wsign">
+          <div class="wsign-title">⚔️ ROUNDS</div>
+          <div class="wsign-body">R1 — Warm Up<br>R2 — Debug It<br>R3 — Blind Code<br>R4 — Build Fast<br>R5 — Optimize<br>FINAL — Speed Run</div>
+        </div>
+        <div class="wsign">
+          <div class="wsign-title">🏆 PRIZES</div>
+          <div class="wsign-body">🥇 ₹5000 + Trophy<br><br>🥈 ₹3000 + Medal<br><br>🥉 ₹1500 + Medal<br><br>★ Certs for all!</div>
+        </div>
+        <div class="wsign">
+          <div class="wsign-title">📅 INFO</div>
+          <div class="wsign-body">DATE: TBD 2025<br>VENUE: CS Hall<br>TIME: 9AM–5PM<br><br>LANG: Any<br>IDE: Online<br>ORGS: CodeLab</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+        <button class="btn gr" onclick="goSection(2);spawnXP(event)">⛏ REGISTER NOW</button>
+        <button class="btn or" onclick="goSection(6);spawnXP(event)">🏆 VIEW LEADERBOARD</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: REGISTRATION -->
+  <div class="section" id="s-reg">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:0;max-width:480px;width:100%;">
+      <div class="hut-outer">
+        <div class="hut-title">🏠 REGISTRATION HUT</div>
+        <div id="regform" style="width:100%;">
+          <div class="dpanel">
+            <div style="font-family:var(--mc);font-size:.5rem;color:var(--gold);margin-bottom:14px;border-bottom:2px solid #444;padding-bottom:10px;">⛏ NEW PLAYER SIGN UP</div>
+            <div class="lbl">PLAYER NAME</div>
+            <input class="inp" id="rname" placeholder="Enter your full name..." maxlength="60">
+            <div class="errtxt hidden" id="ername"></div>
+            <div class="lbl">USN (10 CHARS, ALPHANUMERIC)</div>
+            <input class="inp" id="rusn" placeholder="e.g. 1MS22CS001" maxlength="10" oninput="this.value=this.value.toUpperCase()">
+            <div class="errtxt hidden" id="erusn"></div>
+            <div class="lbl">EMAIL ADDRESS</div>
+            <input class="inp" id="remail" placeholder="player@example.com" type="email">
+            <div class="errtxt hidden" id="erremail"></div>
+            <div class="pbar hidden" id="regpbar"><div class="pfill" id="regpfill"></div></div>
+            <div class="errtxt hidden" id="ergen" style="text-align:center;margin-top:8px;"></div>
+            <button class="btn gr" style="width:100%;margin-top:14px;" onclick="doRegister()">► REGISTER &amp; GET QR CODE ◄</button>
+          </div>
+        </div>
+        <div id="regsuccess" class="hidden" style="width:100%;">
+          <div class="successpanel">
+            <div style="font-family:var(--mc);font-size:.55rem;color:var(--green);margin-bottom:10px;">✅ REGISTRATION SUCCESS!</div>
+            <div id="qrcanv" class="qrbox"></div>
+            <div class="qrid" id="qridtxt"></div>
+            <div style="font-family:var(--mc);font-size:.32rem;color:#777;margin-bottom:14px;">Show this QR at every round checkpoint</div>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+              <button class="btn gr" onclick="downloadQR()">⬇ DOWNLOAD QR</button>
+              <button class="btn bl" onclick="goSection(3);loadInv()">🎒 MY INVENTORY</button>
+              <button class="btn st" onclick="resetReg()">↩ REGISTER ANOTHER</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: INVENTORY -->
+  <div class="section" id="s-inv">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;max-width:600px;width:100%;">
+      <div class="invpanel">
+        <div class="inv-title">🎒 PLAYER INVENTORY</div>
+        <div id="invempty">
+          <div style="text-align:center;font-family:var(--mc);font-size:.38rem;color:#777;padding:12px 0;">No player loaded. Register first or search by USN.</div>
+          <div class="lbl">SEARCH BY USN</div>
+          <input class="inp" id="invusn" placeholder="Enter your USN..." oninput="this.value=this.value.toUpperCase()">
+          <button class="btn gr" style="width:100%;margin-top:8px;" onclick="searchInv()">🔍 LOAD PLAYER DATA</button>
+          <div class="errtxt hidden" id="invserr"></div>
+        </div>
+        <div id="invdata" class="hidden">
+          <div class="inv-grid" id="invslots"></div>
+          <div id="invqrbox" style="margin-top:14px;text-align:center;"></div>
+          <button class="btn st" style="width:100%;margin-top:10px;" onclick="resetInv()">🔍 SEARCH ANOTHER</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: COORD LOGIN -->
+  <div class="section" id="s-coord">
+    <div style="display:flex;flex-direction:column;align-items:center;max-width:400px;width:100%;">
+      <div class="cmdroom">
+        <div style="text-align:center;font-size:1.8rem;margin-bottom:6px;animation:tFck .35s ease-in-out infinite alternate;">⚙️</div>
+        <div class="cmd-title">COMMAND BLOCK ROOM</div>
+        <div class="cmd-sub">COORDINATOR ACCESS ONLY</div>
+        <div class="lbl">USERNAME</div>
+        <input class="inp" id="cuser" placeholder="Coordinator name...">
+        <div class="lbl">PASSWORD</div>
+        <input class="inp" id="cpass" type="password" placeholder="••••••••••••">
+        <div class="errtxt hidden" id="cerr" style="text-align:center;margin:8px 0;"></div>
+        <button class="btn or" style="width:100%;margin-top:14px;" onclick="doLogin()">⚡ ENTER COMMAND CENTER</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 5: DASHBOARD -->
+  <div class="section" id="s-dash">
+    <div style="display:flex;flex-direction:column;align-items:center;max-width:680px;width:100%;">
+      <div class="dashpanel">
+        <div class="dash-hdr">
+          <div class="dash-title"><span class="live"></span>COORDINATOR DASHBOARD</div>
+          <button class="btn rd" style="font-size:.32rem;padding:5px 10px;" onclick="doLogout()">LOGOUT</button>
+        </div>
+        <div style="font-family:var(--mc);font-size:.38rem;color:#777;text-align:center;margin-bottom:10px;">SCAN QR CODE TO LOOK UP PARTICIPANT</div>
+        <div class="scanbx" id="scanbx">
+          <video id="svid" autoplay muted playsinline></video>
+          <div class="scanline" id="scanline"></div>
+          <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+          <div id="scanph">📷 Click START CAMERA below</div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center;margin:8px 0;">
+          <button class="btn gr" onclick="startCam()" id="cambtn">📷 START CAMERA</button>
+          <button class="btn rd hidden" onclick="stopCam()" id="camstop">⏹ STOP</button>
+        </div>
+        <hr class="sep">
+        <div style="font-family:var(--mc);font-size:.35rem;color:#777;text-align:center;margin:6px 0;">— OR MANUAL LOOKUP —</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input class="inp" id="mqr" placeholder="Paste QR ID or USN..." style="flex:1;font-size:.44rem;" oninput="this.value=this.value.toUpperCase()">
+          <button class="btn gr" onclick="manualLookup()" style="white-space:nowrap;">🔍 FIND</button>
+        </div>
+        <div id="dashcard" class="hidden" style="margin-top:12px;">
+          <div class="pc" id="dashinfo"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+            <div>
+              <div class="lbl">ROUNDS COMPLETED</div>
+              <input class="inp" id="urounds" type="number" min="0" max="10" style="font-size:.48rem;">
+            </div>
+            <div>
+              <div class="lbl">TIME TAKEN (mins)</div>
+              <input class="inp" id="utime" type="number" min="0" style="font-size:.48rem;">
+            </div>
+          </div>
+          <button class="btn gr" style="width:100%;margin-top:10px;" onclick="saveUpdate()">💾 SAVE &amp; SYNC LEADERBOARD</button>
+          <div class="errtxt hidden" id="updmsg" style="color:var(--green);text-align:center;margin-top:6px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 6: LEADERBOARD -->
+  <div class="section" id="s-lb">
+    <div style="display:flex;flex-direction:column;align-items:center;max-width:800px;width:100%;">
+      <div style="font-family:var(--mc);font-size:.38rem;color:var(--gold);margin-bottom:10px;letter-spacing:2px;text-shadow:2px 2px #000;"><span class="live"></span>UPDATING LIVE</div>
+      <div class="lb-pillar">
+        <div class="lboard">
+          <div class="lboard-hdr">🏆 CODEBUDDY LEADERBOARD 🏆</div>
+          <div style="overflow-x:auto;">
+            <table class="lbt" id="lbtable">
+              <thead><tr>
+                <th>RANK</th><th>PLAYER</th><th>USN</th><th>ROUNDS</th><th>TIME (min)</th>
+              </tr></thead>
+              <tbody id="lbbody">
+                <tr><td colspan="5" style="color:#555;font-family:var(--mc);font-size:.40rem;padding:18px;">No participants yet!</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;justify-content:center;">
+        <button class="btn gr" onclick="goSection(2);spawnXP(event)">⛏ JOIN THE EVENT</button>
+        <button class="btn gl" onclick="refreshLB();notify('Leaderboard refreshed!')">🔄 REFRESH</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /sections -->
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script>
+// ═══════════════════════════════
+//  DATABASE (localStorage)
+// ═══════════════════════════════
+const DB_KEY = 'codebuddy_v2';
+let db = { participants: [] };
+function loadDB(){ try{ const d=localStorage.getItem(DB_KEY); if(d) db=JSON.parse(d); }catch(e){} }
+function saveDB(){ try{ localStorage.setItem(DB_KEY,JSON.stringify(db)); }catch(e){} }
+loadDB();
+
+// ═══════════════════════════════
+//  STATE
+// ═══════════════════════════════
+let currentSection = 0;
+let currentPlayer = null;
+let coordIn = false;
+let lookupP = null;
+let camStream = null;
+let scanInt = null;
+let xp = 5;
+let xpLevel = 1;
+let time = 0; // 0-1 day cycle
+let weatherOn = false;
+
+const sections = ['s-hero','s-about','s-reg','s-inv','s-coord','s-dash','s-lb'];
+const biomes = ['🌿 SPAWN BIOME','🌳 FOREST VILLAGE','🏠 REGISTRATION HUT','🎒 PLAYER INVENTORY','⚙️ COMMAND BLOCK ROOM','📡 COORDINATOR HQ','🏆 LEADERBOARD ARENA'];
+const sectionNames = ['Spawn Area','Village','Registration Hut','Inventory','Command Room','Coord Dashboard','Leaderboard'];
+
+// ═══════════════════════════════
+//  THREE.JS WORLD
+// ═══════════════════════════════
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('world'), antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+scene.fog = new THREE.Fog(0x87CEEB, 30, 120);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 200);
+camera.position.set(0, 2.5, 10);
+
+// LIGHTING
+const sunLight = new THREE.DirectionalLight(0xffffff, 1.6);
+sunLight.position.set(15, 25, 5);
+sunLight.castShadow = true;
+scene.add(sunLight);
+
+// SUN VISUAL MESH
+const sunGeo = new THREE.BoxGeometry(8, 8, 0.5);
+const sunMat = new THREE.MeshBasicMaterial({ color: 0xFFEA00 });
+const sunMesh = new THREE.Mesh(sunGeo, sunMat);
+sunMesh.position.set(40, 40, -80);
+sunMesh.rotation.y = -Math.PI / 4;
+sunMesh.rotation.x = Math.PI / 8;
+scene.add(sunMesh);
+
+const ambLight = new THREE.AmbientLight(0x6688aa, 0.6);
+scene.add(ambLight);
+const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x5D8A3C, 0.5);
+scene.add(hemiLight);
+
+// BLOCK FACTORY
+function makeBlock(color, w=1, h=1, d=1){
+  const geo = new THREE.BoxGeometry(w,h,d);
+  const mat = new THREE.MeshLambertMaterial({ color });
+  return new THREE.Mesh(geo, mat);
+}
+
+// GROUND — big flat plane of grass blocks
+const groundGeo = new THREE.PlaneGeometry(300, 300, 1, 1);
+const groundMat = new THREE.MeshLambertMaterial({ color: 0x5D8A3C });
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI/2;
+ground.position.y = -0.05;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// DIRT EDGE
+for(let x=-15;x<=15;x+=2){
+  const b = makeBlock(0x8B6340, 2, 0.5, 300);
+  b.position.set(x*2, -0.25, -50);
+  scene.add(b);
+}
+
+// GRASS BLOCKS scattered
+function addGrassBlock(x,y,z){
+  const b = makeBlock(0x5D8A3C, 1, 1, 1);
+  b.position.set(x,y,z);
+  b.castShadow=true; b.receiveShadow=true;
+  scene.add(b);
+  const top = makeBlock(0x7FC47F, 1, 0.12, 1);
+  top.position.set(x,y+0.56,z);
+  scene.add(top);
+}
+const grassPositions = [
+  [-3,0,-5],[3,0,-5],[5,0,-8],[-6,0,-8],[8,0,-12],[-9,0,-12],
+  [4,0,-18],[-4,0,-18],[6,0,-25],[-7,0,-25],[3,0,-32],[-3,0,-32],
+  [8,0,-40],[-8,0,-40],[5,0,-48],[-5,0,-48],[2,0,-55],[-2,0,-55],
+  [10,0,-62],[-10,0,-62],[0,0,-70],[7,0,-78],[-7,0,-78]
+];
+grassPositions.forEach(([x,y,z])=>addGrassBlock(x,y,z));
+
+// TREES
+function addTree(x,z){
+  // Trunk
+  for(let i=0;i<4;i++){
+    const b = makeBlock(0x7E6348, 0.8, 1, 0.8);
+    b.position.set(x, i+0.5, z);
+    b.castShadow=true;
+    scene.add(b);
+  }
+  // Leaves
+  const leafPositions = [
+    [0,5,0],[1,4,0],[-1,4,0],[0,4,1],[0,4,-1],
+    [1,3,0],[-1,3,0],[0,3,1],[0,3,-1],[1,3,1],[-1,3,-1],[1,3,-1],[-1,3,1],
+    [0,3,0],[0,6,0]
+  ];
+  leafPositions.forEach(([lx,ly,lz])=>{
+    const leaf = makeBlock(0x3d6028, 0.85, 0.85, 0.85);
+    leaf.position.set(x+lx, ly, z+lz);
+    scene.add(leaf);
+  });
+}
+[[-8,-15],[8,-15],[-12,-25],[12,-25],[-6,-35],[10,-35],[-10,-45],[6,-45],
+ [-8,-55],[8,-55],[-12,-65],[12,-65],[-7,-75],[7,-75]].forEach(([x,z])=>addTree(x,z));
+
+// VILLAGE HOUSES & STRUCTURES
+function addHouse(x,z){
+  // Walls
+  const wall = makeBlock(0xC4A061, 5, 3, 5);
+  wall.position.set(x, 1.5, z);
+  wall.castShadow=true; wall.receiveShadow=true;
+  scene.add(wall);
+  // Roof
+  const roof = makeBlock(0xCC2222, 5.5, 0.6, 5.5);
+  roof.position.set(x, 3.3, z);
+  scene.add(roof);
+  const roof2 = makeBlock(0xAA1111, 4, 0.8, 4);
+  roof2.position.set(x, 4, z);
+  scene.add(roof2);
+  // Door
+  const door = makeBlock(0x5C3A1A, 0.8, 1.8, 0.1);
+  door.position.set(x, 0.9, z+2.55);
+  scene.add(door);
+  // Window
+  const win = makeBlock(0x4a9fd4, 0.9, 0.9, 0.1);
+  win.position.set(x+1.2, 1.8, z+2.55);
+  scene.add(win);
+  const win2 = makeBlock(0x4a9fd4, 0.9, 0.9, 0.1);
+  win2.position.set(x-1.2, 1.8, z+2.55);
+  scene.add(win2);
+}
+
+function addTower(x,z){
+  const wall = makeBlock(0x888888, 4, 8, 4);
+  wall.position.set(x, 4, z);
+  wall.castShadow=true; wall.receiveShadow=true;
+  scene.add(wall);
+  const roof = makeBlock(0x555555, 4.5, 1, 4.5);
+  roof.position.set(x, 8.5, z);
+  scene.add(roof);
+}
+
+const houseCoords = [[-10,-20],[10,-22],[-9,-40],[11,-42],[-10,-60],[10,-58],[-20,-30],[20,-35],[-22,-50],[22,-55],[-15,-75],[15,-75],[-30,-25],[30,-25],[-30,-45],[30,-45]];
+houseCoords.forEach(([x,z])=>addHouse(x,z));
+[[-20,-15], [20,-15], [0,-90], [-25,-60], [25,-60]].forEach(([x,z])=>addTower(x,z));
+
+// PATH BLOCKS
+for(let i=0;i<80;i++){
+  const b = makeBlock(0x888877, 1.2, 0.08, 1.2);
+  b.position.set((Math.random()-.5)*2, 0.06, -i*1.2+5); // Set slightly higher to heavily prevent Z-fighting
+  scene.add(b);
+}
+
+// STONE/ORE BLOCKS
+function addOre(x,y,z){ const b=makeBlock(0x1a4a8b,1,1,1); b.position.set(x,y,z); scene.add(b); }
+[[5,0,-10],[-5,0,-10],[6,1,-22],[-7,1,-28],[4,0,-38],[-6,1,-45],[5,0,-55],[-7,1,-65]].forEach(([x,y,z])=>addOre(x,y,z));
+
+// CLOUDS (flat white boxes)
+const clouds = [];
+for(let i=0;i<14;i++){
+  const w = 6+Math.random()*8;
+  const cg = new THREE.BoxGeometry(w, 0.8, 3+Math.random()*3);
+  const cm = new THREE.MeshLambertMaterial({ color:0xffffff, transparent:true, opacity:.88 });
+  const cloud = new THREE.Mesh(cg, cm);
+  cloud.position.set((Math.random()-0.5)*60, 15+Math.random()*6, -Math.random()*100);
+  scene.add(cloud);
+  clouds.push({ mesh:cloud, speed:0.004+Math.random()*0.006 });
+}
+
+// ANIMALS (SHEEP, PIGS, CREEPERS, COWS)
+const animals = [];
+function addAnimal(type, x, z, bounds) {
+  const group = new THREE.Group();
+  let mat, headMat;
+  if(type==='sheep') {
+    mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    headMat = new THREE.MeshLambertMaterial({ color: 0xffccaa });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 1.2), mat);
+    body.position.y = 0.5;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.6), headMat);
+    head.position.set(0, 0.8, 0.7);
+    group.add(body); group.add(head);
+    for(let i=0; i<4; i++) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.4, 0.2), headMat);
+      leg.position.set((i%2===0?-0.3:0.3), 0.2, (i<2?0.4:-0.4));
+      group.add(leg);
+    }
+  } else if (type === 'pig') {
+    mat = new THREE.MeshLambertMaterial({ color: 0xF5A9BC });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 1.1), mat);
+    body.position.y = 0.45;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), mat);
+    head.position.set(0, 0.6, 0.6);
+    const snout = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.1), new THREE.MeshLambertMaterial({ color: 0xE28A9D }));
+    snout.position.set(0, 0.55, 0.86);
+    group.add(body); group.add(head); group.add(snout);
+    for(let i=0; i<4; i++) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 0.2), mat);
+      leg.position.set((i%2===0?-0.25:0.25), 0.15, (i<2?0.4:-0.4));
+      group.add(leg);
+    }
+  } else if (type === 'creeper') {
+    mat = new THREE.MeshLambertMaterial({ color: 0x4fc04f });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.0, 0.3), mat);
+    body.position.y = 0.7;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), mat);
+    head.position.set(0, 1.45, 0);
+    group.add(body); group.add(head);
+    const f1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.3), mat); f1.position.set(0, 0.1, 0.25);
+    const f2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.3), mat); f2.position.set(0, 0.1, -0.25);
+    group.add(f1); group.add(f2);
+  } else if (type === 'cow') {
+    mat = new THREE.MeshLambertMaterial({ color: 0x5C3A21 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 1.4), mat);
+    body.position.y = 0.6;
+    const spot = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.4, 0.5), new THREE.MeshLambertMaterial({ color: 0xeeeeee }));
+    spot.position.y = 0.6;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), mat);
+    head.position.set(0, 1.0, 0.8);
+    const snout = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.2), new THREE.MeshLambertMaterial({ color: 0xffaaaa }));
+    snout.position.set(0, 0.85, 1.15);
+    group.add(body); group.add(spot); group.add(head); group.add(snout);
+    for(let i=0; i<4; i++) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.5, 0.25), mat);
+      leg.position.set((i%2===0?-0.35:0.35), 0.25, (i<2?0.5:-0.5));
+      group.add(leg);
+    }
+  }
+  
+  group.children.forEach(c => { c.castShadow = true; c.receiveShadow = true; });
+  group.position.set(x, 0, z);
+  const rot = Math.random() * Math.PI * 2;
+  group.rotation.y = rot;
+  scene.add(group);
+  animals.push({ mesh: group, type: type, ty: rot, moveTimer: 0, walkCycle: Math.random()*2, bounds: bounds });
+}
+
+houseCoords.forEach(([hx, hz]) => {
+  addAnimal('sheep', hx + (Math.random()-0.5)*6, hz + 5 + Math.random()*4, { minX: hx - 6, maxX: hx + 6, minZ: hz + 1, maxZ: hz + 10 });
+});
+
+for(let i=0; i<4; i++) addAnimal('pig', (Math.random()-0.5)*30, -5 - Math.random()*80);
+for(let i=0; i<2; i++) addAnimal('creeper', (Math.random()-0.5)*30, -25 - Math.random()*50);
+for(let i=0; i<3; i++) addAnimal('cow', (Math.random()-0.5)*30, -10 - Math.random()*70);
+
+// ═══════════════════════════════
+//  CAMERA BOBBING
+// ═══════════════════════════════
+let camBob = 0;
+let targetZ = 10;
+let camZ = 10;
+const sectionZ = [10, -5, -20, -35, -50, -65, -78];
+
+// ═══════════════════════════════
+//  RENDER LOOP
+// ═══════════════════════════════
+let lastTime2 = 0;
+function animate(ts){
+  requestAnimationFrame(animate);
+  const dt = Math.min((ts - lastTime2)/1000, 0.05);
+  lastTime2 = ts;
+  time += dt * 0.02;
+  if(time>1) time=0;
+
+  // Camera smooth move
+  camZ += (targetZ - camZ) * 0.04;
+  camBob += dt * 1.8;
+  camera.position.set(
+    Math.sin(camBob*.3)*.12,
+    2.5 + Math.sin(camBob)*.03,
+    camZ
+  );
+  camera.lookAt(Math.sin(camBob*.3)*.05, 2.3, camZ - 10);
+
+  // Clouds
+  clouds.forEach(c=>{
+    c.mesh.position.x += c.speed;
+    if(c.mesh.position.x > 40) c.mesh.position.x = -40;
+  });
+
+  // Animals movement
+  animals.forEach(a => {
+    a.moveTimer -= dt;
+    if (a.moveTimer <= 0) {
+      a.moveTimer = 2 + Math.random() * 4;
+      a.ty = a.mesh.rotation.y + (Math.random() - 0.5) * 2;
+    }
+    a.mesh.rotation.y += (a.ty - a.mesh.rotation.y) * 0.05;
+    
+    let speed = (a.type === 'creeper') ? 1.0 : 1.5;
+    if (a.type === 'sheep') speed = 0.8;
+    
+    if(Math.abs(a.ty - a.mesh.rotation.y) < 0.5 && a.moveTimer > 1) {
+      a.mesh.position.x -= Math.sin(a.mesh.rotation.y) * speed * dt;
+      a.mesh.position.z -= Math.cos(a.mesh.rotation.y) * speed * dt;
+      a.walkCycle += dt * 10;
+      a.mesh.position.y = Math.abs(Math.sin(a.walkCycle)) * 0.1;
+    } else {
+      a.mesh.position.y = 0;
+    }
+    
+    // Bounds checking
+    if (a.bounds) {
+      if(a.mesh.position.x > a.bounds.maxX) a.ty = -Math.PI/2;
+      if(a.mesh.position.x < a.bounds.minX) a.ty = Math.PI/2;
+      if(a.mesh.position.z < a.bounds.minZ) a.ty = 0;
+      if(a.mesh.position.z > a.bounds.maxZ) a.ty = Math.PI;
+    } else {
+      if(a.mesh.position.x > 30) a.ty = -Math.PI/2;
+      if(a.mesh.position.x < -30) a.ty = Math.PI/2;
+      if(a.mesh.position.z < -95) a.ty = 0;
+      if(a.mesh.position.z > 5) a.ty = Math.PI;
+    }
+  });
+
+  // Day/night cycle (DAY MODE ONLY)
+  const dayT = 1;
+  const skyR = 0.53+dayT*.18;
+  const skyG = 0.81+dayT*.1;
+  const skyB = 0.92+dayT*.05;
+  scene.background.setRGB(skyR,skyG,skyB);
+  scene.fog.color.setRGB(skyR,skyG,skyB);
+  sunLight.intensity = 1.6;
+  sunLight.position.set(15, 25, 5);
+  ambLight.intensity = 0.6;
+
+  // Update HUD
+  document.getElementById('cx').textContent = Math.round(-camZ*1.5);
+  document.getElementById('cz').textContent = Math.round(camZ*2);
+  document.getElementById('tod').textContent = '☀️ DAY';
+
+  renderer.render(scene, camera);
+}
+animate(0);
+
+// ═══════════════════════════════
+//  SECTION NAVIGATION
+// ═══════════════════════════════
+function goSection(idx){
+  document.querySelectorAll('.section').forEach((s,i)=>{
+    s.classList.toggle('visible', i===idx);
+  });
+  document.querySelectorAll('.nd').forEach((d,i)=>d.classList.toggle('active',i===idx));
+  currentSection = idx;
+  targetZ = sectionZ[idx];
+  document.getElementById('biome').textContent = biomes[idx];
+  showAreaLabel(sectionNames[idx]);
+  gainXP(8);
+  flashScreen();
+
+  // Hide coord section if not logged in
+  if(idx===5 && !coordIn){ goSection(4); return; }
+}
+
+function showAreaLabel(name){
+  const el = document.getElementById('arealabel');
+  el.textContent = '📍 ' + name;
+  el.style.opacity='1';
+  setTimeout(()=>el.style.opacity='0', 2200);
+}
+
+// ═══════════════════════════════
+//  CURSOR
+// ═══════════════════════════════
+document.addEventListener('mousemove', e=>{
+  const c = document.getElementById('cursor');
+  c.style.left = e.clientX+'px';
+  c.style.top = e.clientY+'px';
+});
+document.addEventListener('click', e=>{ spawnParticles(e.clientX, e.clientY); });
+
+function spawnParticles(x,y){
+  const cols=['#5D8A3C','#FFD700','#4AAD52','#CC6600','#87CEEB','#CC2222','#fff'];
+  for(let i=0;i<8;i++){
+    const p = document.createElement('div');
+    p.className = 'px-particle';
+    const dx=(Math.random()-0.5)*90+'px';
+    const dy=(Math.random()-0.5)*90+'px';
+    p.style.cssText=`left:${x}px;top:${y}px;background:${cols[i%cols.length]};--dx:${dx};--dy:${dy};`;
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(), 650);
+  }
+}
+function spawnXP(e){
+  const r = e.target.getBoundingClientRect();
+  for(let i=0;i<3;i++){
+    const orb = document.createElement('div');
+    orb.className='xporb';
+    orb.style.cssText=`left:${r.left+r.width/2+(Math.random()-0.5)*30}px;top:${r.top}px;animation-delay:${i*.08}s;`;
+    document.body.appendChild(orb);
+    setTimeout(()=>orb.remove(), 2000);
+  }
+  gainXP(15);
+}
+function flashScreen(){
+  const f=document.getElementById('flash');
+  f.style.opacity='.18';
+  setTimeout(()=>f.style.opacity='0', 120);
+}
+function notify(msg, dur=2200){
+  const n=document.getElementById('notif');
+  n.textContent=msg; n.style.opacity='1';
+  setTimeout(()=>n.style.opacity='0', dur);
+}
+function gainXP(amount){
+  xp += amount;
+  if(xp >= 100){ xp=0; xpLevel++; notify('★ LEVEL UP! Now Level '+xpLevel); }
+  document.getElementById('xpfill').style.width = xp+'%';
+  document.getElementById('xplvl').textContent = 'LVL '+xpLevel+' — '+xp+' XP';
+}
+
+// ═══════════════════════════════
+//  KEYBOARD NAVIGATION
+// ═══════════════════════════════
+document.addEventListener('keydown', e=>{
+  if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+  const map={'1':0,'2':1,'3':2,'4':3,'5':4,'6':5,'7':6};
+  if(map[e.key]!==undefined) goSection(map[e.key]);
+  if(e.key==='Tab'){e.preventDefault(); goSection((currentSection+1)%7);}
+  if(e.key==='r'||e.key==='R') toggleRain();
+});
+
+// ═══════════════════════════════
+//  RAIN
+// ═══════════════════════════════
+function toggleRain(){
+  weatherOn = !weatherOn;
+  const w = document.getElementById('weather');
+  w.innerHTML='';
+  if(weatherOn){
+    for(let i=0;i<80;i++){
+      const d=document.createElement('div');
+      d.className='rain-drop';
+      const h=40+Math.random()*80;
+      d.style.cssText=`left:${Math.random()*100}%;height:${h}px;top:${-h}px;animation-duration:${0.6+Math.random()*0.5}s;animation-delay:${Math.random()*2}s;`;
+      w.appendChild(d);
+    }
+    notify('🌧 Rain started! Press R to stop.');
+  } else { notify('☀️ Weather cleared!'); }
+}
+
+// ═══════════════════════════════
+//  VALIDATION
+// ═══════════════════════════════
+function showErr(id,msg){ const e=document.getElementById(id); e.textContent=msg; e.classList.remove('hidden'); }
+function hideErr(id){ document.getElementById(id).classList.add('hidden'); }
+
+// ═══════════════════════════════
+//  REGISTRATION
+// ═══════════════════════════════
+async function doRegister(){
+  const name=document.getElementById('rname').value.trim();
+  const usn=document.getElementById('rusn').value.trim().toUpperCase();
+  const email=document.getElementById('remail').value.trim();
+  ['ername','erusn','erremail','ergen'].forEach(hideErr);
+  let ok=true;
+  if(!name){ showErr('ername','▸ Name is required'); ok=false; }
+  if(!/^[A-Za-z0-9]{10}$/.test(usn)){ showErr('erusn','▸ USN must be exactly 10 alphanumeric chars'); ok=false; }
+  else if(db.participants.find(p=>p.usn===usn)){ showErr('erusn','▸ USN already registered!'); ok=false; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showErr('erremail','▸ Invalid email address'); ok=false; }
+  if(!ok) return;
+
+  // Progress bar
+  const pb=document.getElementById('regpbar'); pb.classList.remove('hidden');
+  const pf=document.getElementById('regpfill');
+  let w=0; const iv=setInterval(()=>{ w=Math.min(w+8,90); pf.style.width=w+'%'; },80);
+
+  await new Promise(r=>setTimeout(r,1200));
+  clearInterval(iv); pf.style.width='100%';
+  await new Promise(r=>setTimeout(r,300));
+
+  const id='CB-'+Math.floor(1000+Math.random()*9000)+'-'+Math.random().toString(36).substr(2,8).toUpperCase();
+  const qrData=id+'|'+usn;
+  const p={id,name,usn,email,qr_code:qrData,rounds_played:0,time_taken:0,created_at:new Date().toISOString()};
+  db.participants.push(p); saveDB();
+  currentPlayer=p;
+
+  pb.classList.add('hidden');
+  document.getElementById('regform').classList.add('hidden');
+  document.getElementById('regsuccess').classList.remove('hidden');
+  document.getElementById('qridtxt').textContent=qrData;
+
+  const qrEl=document.getElementById('qrcanv');
+  qrEl.innerHTML='';
+  if(typeof QRCode!=='undefined'){
+    new QRCode(qrEl,{text:qrData,width:160,height:160,colorDark:'#000000',colorLight:'#ffffff'});
+  }
+  refreshLB(); gainXP(50); notify('🎉 Welcome '+name+'! You joined CODEBUDDY!');
+}
+
+function resetReg(){
+  document.getElementById('regform').classList.remove('hidden');
+  document.getElementById('regsuccess').classList.add('hidden');
+  ['rname','rusn','remail'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('regpfill').style.width='0%';
+  document.getElementById('regpbar').classList.add('hidden');
+}
+
+function downloadQR(){
+  const canvas=document.querySelector('#qrcanv canvas');
+  if(canvas){
+    const a=document.createElement('a');
+    a.download='codebuddy-qr.png';
+    a.href=canvas.toDataURL('image/png');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    notify('⬇ QR Code downloaded!');
+    return;
+  }
+  const img=document.querySelector('#qrcanv img');
+  if(img){
+    const c2=document.createElement('canvas');
+    c2.width=img.naturalWidth||160; c2.height=img.naturalHeight||160;
+    c2.getContext('2d').drawImage(img,0,0);
+    const a=document.createElement('a');
+    a.download='codebuddy-qr.png';
+    a.href=c2.toDataURL('image/png');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    notify('⬇ QR Code downloaded!');
+    return;
+  }
+  notify('❌ QR not ready yet. Try again.');
+}
+
+// ═══════════════════════════════
+//  INVENTORY
+// ═══════════════════════════════
+function loadInv(){
+  if(!currentPlayer) return;
+  renderInv(currentPlayer);
+}
+function searchInv(){
+  const usn=document.getElementById('invusn').value.trim().toUpperCase();
+  const p=db.participants.find(x=>x.usn===usn);
+  if(p){ renderInv(p); hideErr('invserr'); }
+  else { showErr('invserr','▸ USN not found. Please register first.'); }
+}
+function resetInv(){
+  document.getElementById('invempty').classList.remove('hidden');
+  document.getElementById('invdata').classList.add('hidden');
+  document.getElementById('invusn').value='';
+  hideErr('invserr');
+}
+function getPlayerRank(usn){
+  const sorted=[...db.participants].sort((a,b)=>b.rounds_played-a.rounds_played||a.time_taken-b.time_taken);
+  const idx=sorted.findIndex(p=>p.usn===usn);
+  return idx>=0?idx+1:'?';
+}
+function renderInv(p){
+  document.getElementById('invempty').classList.add('hidden');
+  document.getElementById('invdata').classList.remove('hidden');
+  const rank=getPlayerRank(p.usn);
+  const slots=document.getElementById('invslots');
+  slots.innerHTML=`
+    <div class="islot"><div class="ico">👤</div><div class="ilbl">NAME</div><div class="ival" style="font-size:.3rem">${p.name}</div></div>
+    <div class="islot"><div class="ico">🎓</div><div class="ilbl">USN</div><div class="ival">${p.usn}</div></div>
+    <div class="islot"><div class="ico">📧</div><div class="ilbl">EMAIL</div><div class="ival" style="font-size:.28rem">${p.email}</div></div>
+    <div class="islot gold-slot"><div class="ico">⚔️</div><div class="ilbl">ROUNDS</div><div class="ival" style="font-size:1.1rem">${p.rounds_played}</div></div>
+    <div class="islot"><div class="ico">⏱️</div><div class="ilbl">TIME</div><div class="ival">${p.time_taken||0} min</div></div>
+    <div class="islot gold-slot"><div class="ico">🏆</div><div class="ilbl">RANK</div><div class="ival" style="font-size:1.1rem">#${rank}</div></div>
+  `;
+  const qrEl=document.getElementById('invqrbox');
+  qrEl.innerHTML='';
+  if(typeof QRCode!=='undefined'){
+    const wrap=document.createElement('div');
+    wrap.style.cssText='background:#fff;padding:10px;width:fit-content;margin:0 auto;box-shadow:0 0 0 3px #333';
+    qrEl.appendChild(wrap);
+    new QRCode(wrap,{text:p.qr_code,width:110,height:110,colorDark:'#000000',colorLight:'#ffffff'});
+  }
+  gainXP(10);
+}
+
+// ═══════════════════════════════
+//  COORDINATOR
+// ═══════════════════════════════
+function doLogin(){
+  const user=document.getElementById('cuser').value.trim();
+  const pass=document.getElementById('cpass').value;
+  hideErr('cerr');
+  if(!user){ showErr('cerr','▸ Enter a username'); return; }
+  if(pass!=='officeoffice19681'){ showErr('cerr','▸ Incorrect password. Access denied.'); return; }
+  coordIn=true;
+  goSection(5);
+  notify('⚡ Coordinator access granted. Welcome, '+user+'!');
+  refreshLB();
+}
+function doLogout(){
+  coordIn=false;
+  stopCam();
+  document.getElementById('dashcard').classList.add('hidden');
+  goSection(4);
+  notify('Logged out of coordinator panel.');
+}
+
+// ═══════════════════════════════
+//  CAMERA / QR SCAN
+// ═══════════════════════════════
+async function startCam(){
+  try{
+    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const vid=document.getElementById('svid');
+    vid.style.display='block';
+    vid.srcObject=camStream;
+    document.getElementById('scanph').style.display='none';
+    document.getElementById('cambtn').classList.add('hidden');
+    document.getElementById('camstop').classList.remove('hidden');
+    startScan(vid);
+  }catch(e){
+    document.getElementById('scanph').textContent='⚠️ Camera access denied. Use manual lookup below.';
+  }
+}
+function stopCam(){
+  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+  if(scanInt){ clearInterval(scanInt); scanInt=null; }
+  const vid=document.getElementById('svid');
+  vid.style.display='none';
+  document.getElementById('scanph').style.display='flex';
+  document.getElementById('scanph').textContent='📷 Click START CAMERA below';
+  document.getElementById('cambtn').classList.remove('hidden');
+  document.getElementById('camstop').classList.add('hidden');
+}
+function startScan(vid){
+  const canvas=document.createElement('canvas');
+  const ctx=canvas.getContext('2d');
+  scanInt=setInterval(()=>{
+    if(vid.readyState===vid.HAVE_ENOUGH_DATA){
+      canvas.width=vid.videoWidth; canvas.height=vid.videoHeight;
+      ctx.drawImage(vid,0,0,canvas.width,canvas.height);
+      try{
+        if(typeof jsQR!=='undefined'){
+          const img=ctx.getImageData(0,0,canvas.width,canvas.height);
+          const code=jsQR(img.data,img.width,img.height);
+          if(code){ handleScanResult(code.data); stopCam(); }
+        }
+      }catch(_){}
+    }
+  },500);
+}
+function manualLookup(){
+  const val=document.getElementById('mqr').value.trim().toUpperCase();
+  const p=db.participants.find(x=>x.qr_code===val||x.usn===val||x.id===val||x.qr_code.toUpperCase()===val);
+  if(p){ lookupP=p; showDashCard(p); notify('✅ Found: '+p.name); gainXP(12); }
+  else { notify('❌ Participant not found. Check USN or QR ID.'); }
+}
+function handleScanResult(data){
+  const p=db.participants.find(x=>x.qr_code===data||x.usn===data);
+  if(p){ lookupP=p; showDashCard(p); notify('📷 QR Scanned: '+p.name); gainXP(12); }
+  else { notify('❌ QR not recognized.'); }
+}
+function showDashCard(p){
+  document.getElementById('dashcard').classList.remove('hidden');
+  document.getElementById('dashinfo').innerHTML=`
+    <b>NAME:</b> ${p.name}<br>
+    <b>USN:</b> ${p.usn}<br>
+    <b>EMAIL:</b> ${p.email}<br>
+    <b>ROUNDS:</b> ${p.rounds_played}<br>
+    <b>TIME:</b> ${p.time_taken||0} min<br>
+    <b>ID:</b> ${p.id}
+  `;
+  document.getElementById('urounds').value=p.rounds_played;
+  document.getElementById('utime').value=p.time_taken||0;
+  hideErr('updmsg');
+}
+function saveUpdate(){
+  if(!lookupP) return;
+  const r=parseInt(document.getElementById('urounds').value)||0;
+  const t=parseInt(document.getElementById('utime').value)||0;
+  const idx=db.participants.findIndex(x=>x.id===lookupP.id);
+  if(idx>=0){
+    db.participants[idx].rounds_played=r;
+    db.participants[idx].time_taken=t;
+    saveDB(); lookupP=db.participants[idx];
+    showDashCard(lookupP); refreshLB();
+    const msg=document.getElementById('updmsg');
+    msg.textContent='✅ Saved! Leaderboard updated.'; msg.classList.remove('hidden');
+    setTimeout(()=>msg.classList.add('hidden'),3000);
+    notify('💾 '+lookupP.name+' updated!'); gainXP(20);
+  }
+}
+
+// ═══════════════════════════════
+//  LEADERBOARD
+// ═══════════════════════════════
+function refreshLB(){
+  const sorted=[...db.participants].sort((a,b)=>b.rounds_played-a.rounds_played||a.time_taken-b.time_taken);
+  const tbody=document.getElementById('lbbody');
+  if(!sorted.length){
+    tbody.innerHTML='<tr><td colspan="5" style="color:#555;font-family:var(--mc);font-size:.35rem;padding:18px;">No participants yet! Register to appear here.</td></tr>';
+    return;
+  }
+  const medals=['🥇','🥈','🥉'];
+  tbody.innerHTML=sorted.map((p,i)=>`
+    <tr>
+      <td>${medals[i]||(i+1)}</td>
+      <td style="text-align:left;">${p.name}</td>
+      <td>${p.usn}</td>
+      <td>${p.rounds_played}</td>
+      <td>${p.time_taken||'—'}</td>
+    </tr>
+  `).join('');
+}
+setInterval(refreshLB, 5000);
+refreshLB();
+
+// ═══════════════════════════════
+//  RESIZE
+// ═══════════════════════════════
+window.addEventListener('resize',()=>{
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+// ═══════════════════════════════
+//  LOADER SEQUENCE
+// ═══════════════════════════════
+const msgs=['Generating terrain...','Placing grass blocks...','Growing trees...','Building village...','Spawning clouds...','Lighting torches...','Loading leaderboard...','Entering world...'];
+let li=0;
+const ldf=document.getElementById('ldfill');
+const lds=document.getElementById('ldstatus');
+function loadStep(){
+  if(li>=msgs.length){
+    document.getElementById('loader').style.opacity='0';
+    setTimeout(()=>document.getElementById('loader').style.display='none',700);
+    notify('⛏ Welcome to CODEBUDDY! Press 1-7 to navigate | R for rain | TAB to advance');
+    return;
+  }
+  lds.textContent=msgs[li];
+  ldf.style.width=((li+1)/msgs.length*100)+'%';
+  li++;
+  setTimeout(loadStep, 280);
+}
+setTimeout(loadStep, 400);
+
+// Hotbar cycling
+document.addEventListener('keydown',e=>{
+  const n=parseInt(e.key);
+  if(n>=1&&n<=9){
+    document.querySelectorAll('.hslot').forEach((s,i)=>s.classList.toggle('active',i===n-1));
+  }
+});
+</script>
+</body>
+</html>
